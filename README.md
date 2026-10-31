@@ -15,7 +15,8 @@
   - Ignores punctuation, non-alphanumeric characters, and character casing.
   - **Intelligent Spacebar (Natural Typing + Word Skipping)**:
     - **Normal Typing**: Typing space at word boundaries transitions naturally to the next word.
-    - **Smart Intent Detection for <kbd>Space</kbd>**:
+    - **Lenient Special Character & Bracket Typing**:
+      - When auto-skipping over punctuation, brackets (`()`, `[]`, `{}`), quotes, or colons to the next alphanumeric word, if you naturally type that bracket/punctuation, PageTyper absorbs it smoothly without registering a typo or breaking flow.
       - **Absorbs Natural Space**: When finishing a word, our smart engine auto-skips the space/punctuation to land on the first letter of the next word. Typing <kbd>Space</kbd> right after matches your muscle-memory and absorbs cleanly without skipping the next word.
       - **Skips on First Character**: At the very start of a paragraph (first character), or pressing space when already sitting on the first letter of a word, <kbd>Space</kbd> cleanly skips that word.
       - **Skips Mid-Word**: Pressing <kbd>Space</kbd> inside an in-progress word skips the remainder of that word.

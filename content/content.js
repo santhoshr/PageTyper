@@ -539,6 +539,29 @@
     const expected = currentTarget.normChar;
     const actual = normalizeChar(typedChar);
 
+    // Lenient special character / bracket typing:
+    // If the engine auto-skipped punctuation/brackets/special characters right before this cursor position,
+    // and the user naturally types that special character (e.g., closing bracket ')', ']', '}', quote, comma, etc.),
+    // safely accept/absorb it without triggering a typo!
+    if (actual !== expected && !isAlphanumeric(typedChar)) {
+      // Check if typedChar matches any of the recently auto-skipped characters immediately preceding targetIndex
+      let matchedPrevIndex = -1;
+      for (let i = targetIndex - 1; i >= 0; i--) {
+        if (targetChars[i].isAlphaNum) break; // Don't look past the previous word
+        if (normalizeChar(targetChars[i].char) === actual) {
+          matchedPrevIndex = i;
+          break;
+        }
+      }
+
+      if (matchedPrevIndex !== -1) {
+        // User typed the auto-skipped special character/bracket!
+        removeTypoTooltip();
+        targetChars[matchedPrevIndex].spanNode.classList.add('pagetyper-typed');
+        return; // Absorb cleanly without penalizing accuracy
+      }
+    }
+
     totalCharsTyped++;
 
     if (actual === expected) {
