@@ -13,6 +13,12 @@
   - Press <kbd>Shift + Tab</kbd> to navigate backwards.
 - **Smart Initial Mode (Text-Only / Relaxed)**:
   - Ignores punctuation, non-alphanumeric characters, and character casing.
+  - **Intelligent Spacebar (Natural Typing + Word Skipping)**:
+    - **Normal Typing**: Typing space at word boundaries transitions naturally to the next word.
+    - **Smart Intent Detection for <kbd>Space</kbd>**:
+      - **Absorbs Natural Space**: When finishing a word, our smart engine auto-skips the space/punctuation to land on the first letter of the next word. Typing <kbd>Space</kbd> right after matches your muscle-memory and absorbs cleanly without skipping the next word.
+      - **Skips on First Character**: At the very start of a paragraph (first character), or pressing space when already sitting on the first letter of a word, <kbd>Space</kbd> cleanly skips that word.
+      - **Skips Mid-Word**: Pressing <kbd>Space</kbd> inside an in-progress word skips the remainder of that word.
   - As soon as you finish a word or section, subsequent punctuation and spaces automatically advance and highlight.
 - **Typo Popup Indicator**:
   - When a wrong character is pressed, a red tooltip popup appears directly above the mistake showing `typed: '<key>'`.
@@ -22,8 +28,9 @@
 - **Auto-Scrolling & Auto-Advancing**:
   - Automatically scrolls down smoothly as you type.
   - When a block is completed, it immediately selects and scrolls to the next paragraph automatically.
-- **Floating HUD**:
+- **Floating HUD & Accuracy Breakdown Tooltip**:
   - Displays real-time WPM, Accuracy %, and Block progress.
+  - **Hover over Accuracy**: Reveals an interactive error breakdown tooltip showing your worst-performing characters and error percentages sorted from highest to lowest (e.g. `e: 25% (2/8)`).
 - **Settings Popup**:
   - Toggle punctuation requirement, case sensitivity, auto-scrolling, or enable/disable on demand.
 

@@ -27,11 +27,27 @@
   let targetIndex = 0; // Current character index in targetChars
   let typoTooltip = null;
   let hudElement = null;
+  let justAutoSkippedSpace = false; // Tracks if cursor just landed via auto-skip from typed character
 
   // Stats
   let totalCharsTyped = 0;
   let errorsCount = 0;
   let startTime = null;
+
+  // Key-specific statistics tracking: { attempts: number, errors: number }
+  const charStats = new Map();
+
+  function recordCharAttempt(expectedChar, isError) {
+    const key = expectedChar.toLowerCase();
+    if (!charStats.has(key)) {
+      charStats.set(key, { attempts: 0, errors: 0 });
+    }
+    const stat = charStats.get(key);
+    stat.attempts++;
+    if (isError) {
+      stat.errors++;
+    }
+  }
 
   // Settings
   let config = {
@@ -110,7 +126,18 @@
       <div class="pt-stats">
         <span class="pt-stat-item">Block: <span class="pt-stat-value" id="pt-hud-block">0/0</span></span>
         <span class="pt-stat-item">WPM: <span class="pt-stat-value" id="pt-hud-wpm">0</span></span>
-        <span class="pt-stat-item">Accuracy: <span class="pt-stat-value" id="pt-hud-acc">100%</span></span>
+        <span class="pt-stat-item pt-stat-item-interactive" id="pt-hud-acc-container">
+          Accuracy: <span class="pt-stat-value" id="pt-hud-acc">100%</span>
+          <div class="pt-accuracy-tooltip" id="pt-hud-acc-tooltip">
+            <div class="pt-accuracy-title">
+              <span>Worst Keys (Error %)</span>
+              <span id="pt-hud-acc-total-errors">0 errors</span>
+            </div>
+            <div class="pt-accuracy-list" id="pt-hud-acc-list">
+              <span style="color: #64748b;">No errors recorded yet! 🎯</span>
+            </div>
+          </div>
+        </span>
       </div>
       <span class="pt-hint">Tab / Shift+Tab to jump block • Esc to exit</span>
     `;
@@ -122,6 +149,8 @@
     const blockEl = document.getElementById('pt-hud-block');
     const wpmEl = document.getElementById('pt-hud-wpm');
     const accEl = document.getElementById('pt-hud-acc');
+    const accListEl = document.getElementById('pt-hud-acc-list');
+    const totalErrorsEl = document.getElementById('pt-hud-acc-total-errors');
 
     if (blockEl) blockEl.textContent = `${currentBlockIndex + 1}/${textBlocks.length}`;
 
@@ -131,6 +160,45 @@
       if (wpmEl) wpmEl.textContent = `${wpm}`;
       const accuracy = Math.max(0, Math.round(((totalCharsTyped - errorsCount) / totalCharsTyped) * 100));
       if (accEl) accEl.textContent = `${accuracy}%`;
+    }
+
+    if (totalErrorsEl) {
+      totalErrorsEl.textContent = `${errorsCount} error${errorsCount === 1 ? '' : 's'}`;
+    }
+
+    // Populate worst error keys in tooltip
+    if (accListEl) {
+      const errorsList = [];
+      charStats.forEach((val, key) => {
+        if (val.errors > 0) {
+          const rate = Math.round((val.errors / val.attempts) * 100);
+          errorsList.push({
+            char: key === ' ' ? 'Space' : key,
+            rate: rate,
+            errors: val.errors,
+            attempts: val.attempts,
+          });
+        }
+      });
+
+      // Sort from worst error rate descending
+      errorsList.sort((a, b) => b.rate - a.rate || b.errors - a.errors);
+
+      if (errorsList.length === 0) {
+        accListEl.innerHTML = '<span style="color: #64748b;">No errors recorded yet! 🎯</span>';
+      } else {
+        const topErrors = errorsList.slice(0, 7); // Show top 7 worst keys
+        accListEl.innerHTML = topErrors
+          .map(
+            (item) => `
+          <div class="pt-accuracy-row">
+            <span class="pt-key-badge">${item.char}</span>
+            <span><strong class="pt-error-rate">${item.rate}%</strong> (${item.errors}/${item.attempts})</span>
+          </div>
+        `
+          )
+          .join('');
+      }
     }
   }
 
@@ -159,6 +227,11 @@
         originalHtmlMap.delete(activeElement);
       }
     }
+
+    // Refresh valid/attached elements in case DOM altered
+    textBlocks = textBlocks.filter((el) => el && el.isConnected);
+    if (textBlocks.length === 0) scanTextBlocks();
+    if (textBlocks.length === 0) return;
 
     if (index >= textBlocks.length) {
       index = 0; // Loop or finish
@@ -189,6 +262,7 @@
 
     targetChars = [];
     targetIndex = 0;
+    justAutoSkippedSpace = false;
 
     const fragment = document.createDocumentFragment();
 
@@ -274,6 +348,8 @@
     // Block selection via Tab / Shift+Tab
     if (e.key === 'Tab') {
       e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
       if (e.shiftKey) {
         selectBlock(currentBlockIndex - 1, false);
       } else {
@@ -318,6 +394,55 @@
     e.preventDefault(); // Stop default page scrolling on Space etc.
 
     const typedChar = e.key;
+
+    // Smart & Lenient Space handling:
+    // User intentions with Space:
+    // 1. If user just finished typing a word and the auto-skip moved cursor over the space to the next word:
+    //    User's muscle-memory space was meant for that auto-skipped space! Absorb it cleanly without skipping the next word.
+    // 2. If user is at the first character of paragraph: Space means skip this word!
+    // 3. If previous character was already space and we are on first character of next word (or subsequent space press):
+    //    Another space means user deliberately wants to SKIP the word!
+    // 4. If user is in the middle of a word (previous character was alphanumeric):
+    //    Space means skip the remainder of this word!
+    if (e.code === 'Space' || typedChar === ' ') {
+      removeTypoTooltip();
+
+      const currentItem = targetChars[targetIndex];
+
+      if (currentItem && currentItem.isAlphaNum) {
+        const isFirstCharOfWord = targetIndex === 0 || !targetChars[targetIndex - 1].isAlphaNum;
+
+        if (isFirstCharOfWord && justAutoSkippedSpace) {
+          // Case 1: User just finished typing previous word; auto-skip already jumped the space.
+          // This space keypress was meant for that auto-skipped space, so absorb it without skipping!
+          justAutoSkippedSpace = false;
+          return;
+        }
+
+        // Case 2, 3 & 4:
+        // - At index 0 (first char in paragraph): user wants to skip this word!
+        // - Another space pressed when already on first character of next word: skip this word!
+        // - In the middle of word: skip remainder of this word!
+        justAutoSkippedSpace = false;
+        while (targetIndex < targetChars.length && targetChars[targetIndex].isAlphaNum) {
+          targetChars[targetIndex].spanNode.classList.remove('pagetyper-current');
+          targetChars[targetIndex].spanNode.classList.add('pagetyper-typed');
+          targetIndex++;
+        }
+      } else if (currentItem && !currentItem.isAlphaNum) {
+        justAutoSkippedSpace = false;
+        currentItem.spanNode.classList.remove('pagetyper-current');
+        currentItem.spanNode.classList.add('pagetyper-typed');
+        targetIndex++;
+      }
+
+      // Skip past any whitespace/punctuation to cleanly land on next readable word
+      skipNonTypingChars();
+      highlightCurrent();
+      updateHUD();
+      return;
+    }
+
     const currentTarget = targetChars[targetIndex];
     const expected = currentTarget.normChar;
     const actual = normalizeChar(typedChar);
@@ -326,16 +451,23 @@
 
     if (actual === expected) {
       // Correct!
+      recordCharAttempt(expected, false);
       removeTypoTooltip();
       currentTarget.spanNode.classList.remove('pagetyper-current');
       currentTarget.spanNode.classList.add('pagetyper-typed');
       targetIndex++;
 
-      // Auto-skip subsequent punctuation, spaces, etc.
+      // Check if subsequent characters contain space/punctuation that will be auto-skipped
+      const beforeSkipIndex = targetIndex;
       skipNonTypingChars();
+      // If we skipped any space/punctuation after typing this character, mark justAutoSkippedSpace = true
+      justAutoSkippedSpace = targetIndex > beforeSkipIndex;
+
       highlightCurrent();
     } else {
       // Mistake / Typo!
+      justAutoSkippedSpace = false;
+      recordCharAttempt(expected, true);
       errorsCount++;
       showTypoTooltip(typedChar, currentTarget.spanNode);
     }
@@ -400,15 +532,16 @@
       const containerBlock = targetNode.closest('p, h1, h2, h3, h4, h5, h6, li, blockquote, article');
       if (containerBlock) {
         matchedIndex = textBlocks.indexOf(containerBlock);
-        if (matchedIndex === -1) {
-          // If not in textBlocks, dynamically add it
+        if (matchedIndex === -1 && !textBlocks.includes(containerBlock)) {
+          // If not in textBlocks, find right position in DOM order
           textBlocks.push(containerBlock);
-          matchedIndex = textBlocks.length - 1;
+          textBlocks.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+          matchedIndex = textBlocks.indexOf(containerBlock);
         }
       }
     }
 
-    if (matchedIndex !== -1) {
+    if (matchedIndex !== -1 && matchedIndex !== currentBlockIndex) {
       // Clear visual browser highlight selection so typing highlights take over cleanly
       selection.removeAllRanges();
       selectBlock(matchedIndex);
