@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "PageTyper",
+  "version": "1.0.0",
+  "description": "Practice typing on any webpage text content with smart matching, visual highlights, typo popups, and auto-scroll.",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "pagetyper@extension.local",
+      "strict_min_version": "109.0"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.js"],
+      "css": ["content/styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/styles.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

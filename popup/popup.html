@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PageTyper Settings</title>
+  <style>
+    body {
+      width: 280px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background-color: #0f172a;
+      color: #f1f5f9;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .version {
+      font-size: 11px;
+      color: #64748b;
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    /* Switch styling */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #334155;
+      transition: .2s;
+      border-radius: 20px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .2s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #3b82f6;
+    }
+    input:checked + .slider:before {
+      transform: translateX(16px);
+    }
+    .instructions {
+      background: #1e293b;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .instructions kbd {
+      background: #334155;
+      color: #f8fafc;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    .action-btn {
+      width: 100%;
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.15s;
+    }
+    .action-btn:hover {
+      background: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">⌨️ PageTyper</div>
+    <span class="version">v1.0.0</span>
+  </div>
+
+  <div class="control-group">
+    <div class="toggle-row">
+      <span>Text-only (No punctuation)</span>
+      <label class="switch">
+        <input type="checkbox" id="ignorePunctuation" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span>Ignore letter case</span>
+      <label class="switch">
+        <input type="checkbox" id="ignoreCase" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span>Smooth auto-scroll</span>
+      <label class="switch">
+        <input type="checkbox" id="autoScroll" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <button class="action-btn" id="toggleExtension">Toggle PageTyper On/Off</button>
+
+  <div class="instructions" style="margin-top: 14px;">
+    <strong>Shortcuts:</strong><br>
+    • <kbd>Tab</kbd> / <kbd>Shift+Tab</kbd>: Select next/prev block<br>
+    • <kbd>Backspace</kbd>: Undo last typed letter<br>
+    • <kbd>Esc</kbd>: Turn off overlay
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
