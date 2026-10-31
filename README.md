@@ -65,8 +65,11 @@
 
 | Key / Action | Description |
 | :--- | :--- |
-| <kbd>Tab</kbd> | Move to next text block on the page |
-| <kbd>Shift</kbd> + <kbd>Tab</kbd> | Move to previous text block on the page |
+| <kbd>Tab</kbd> | Move to next text block on the page (preserves previous progress) |
+| <kbd>Shift</kbd> + <kbd>Tab</kbd> | Move to previous text block on the page (restores previous progress) |
 | <kbd>Backspace</kbd> | Undo last typed character |
+| <kbd>Ctrl</kbd> + <kbd>Backspace</kbd> (or <kbd>Alt</kbd> + <kbd>Backspace</kbd>) | Undo whole previous word |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Backspace</kbd> | Clear highlight for current paragraph & restart it |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Backspace</kbd> (twice quickly) | Clear all highlights across entire document |
 | <kbd>Esc</kbd> | Deactivate PageTyper typing mode |
 | Typing any key | Practice typing the currently active block |

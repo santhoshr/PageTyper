@@ -29,6 +29,10 @@
   let hudElement = null;
   let justAutoSkippedSpace = false; // Tracks if cursor just landed via auto-skip from typed character
 
+  // History tracking per block element: stores targetIndex progress across Tab / Shift+Tab
+  const blockProgressMap = new Map(); // Map<HTMLElement, number>
+  let lastCtrlShiftBackspaceTime = 0; // For detecting double C-S-Backspace to clear all
+
   // Stats
   let totalCharsTyped = 0;
   let errorsCount = 0;
@@ -218,14 +222,11 @@
     if (textBlocks.length === 0) scanTextBlocks();
     if (textBlocks.length === 0) return;
 
-    // Remove previous block wrapping/decorations
+    // Save progress of the block we are leaving
     if (activeElement) {
+      blockProgressMap.set(activeElement, targetIndex);
       activeElement.classList.remove('pagetyper-active-block');
-      if (originalHtmlMap.has(activeElement)) {
-        // Leave typed block as plain text or restore original
-        activeElement.innerHTML = originalHtmlMap.get(activeElement);
-        originalHtmlMap.delete(activeElement);
-      }
+      // Keep DOM spans intact so typed progress and highlight colors stay visible on the page!
     }
 
     // Refresh valid/attached elements in case DOM altered
@@ -249,12 +250,39 @@
       activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    // Prepare characters
+    // Prepare or restore characters for this block
     prepareBlockForTyping(activeElement);
     updateHUD();
   }
 
   function prepareBlockForTyping(el) {
+    // If element already has spans prepared, just restore existing state and targetChars
+    if (originalHtmlMap.has(el)) {
+      const spans = el.querySelectorAll('.pagetyper-char');
+      if (spans.length > 0) {
+        targetChars = [];
+        const fullText = el.innerText || '';
+        for (let i = 0; i < spans.length; i++) {
+          const span = spans[i];
+          const char = span.textContent;
+          targetChars.push({
+            char: char,
+            isAlphaNum: isAlphanumeric(char),
+            normChar: normalizeChar(char),
+            spanNode: span,
+          });
+        }
+
+        // Restore saved position or default to 0
+        targetIndex = blockProgressMap.get(el) || 0;
+        justAutoSkippedSpace = false;
+        skipNonTypingChars();
+        highlightCurrent();
+        return;
+      }
+    }
+
+    // First time initializing this block
     originalHtmlMap.set(el, el.innerHTML);
 
     const fullText = el.innerText || '';
@@ -364,21 +392,85 @@
       return;
     }
 
+    // Handle Backspace (Single char undo), Ctrl+Backspace (Word undo), & Ctrl+Shift+Backspace (Clear paragraph / Clear all)
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      removeTypoTooltip();
+
+      // Check for Ctrl+Shift+Backspace (or Cmd+Shift+Backspace / Alt+Shift+Backspace)
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.shiftKey) {
+        const now = Date.now();
+        const isDoublePress = (now - lastCtrlShiftBackspaceTime) < 650; // Pressed twice within 650ms
+        lastCtrlShiftBackspaceTime = now;
+
+        if (isDoublePress) {
+          // Double press: Clear all highlights across the entire document!
+          blockProgressMap.clear();
+          textBlocks.forEach((block) => {
+            if (originalHtmlMap.has(block)) {
+              block.innerHTML = originalHtmlMap.get(block);
+              originalHtmlMap.delete(block);
+            }
+            block.classList.remove('pagetyper-active-block');
+          });
+          document.querySelectorAll('.pagetyper-current, .pagetyper-typed').forEach((n) => {
+            n.classList.remove('pagetyper-current', 'pagetyper-typed');
+          });
+          targetChars = [];
+          targetIndex = 0;
+          if (activeElement) {
+            prepareBlockForTyping(activeElement);
+          }
+        } else {
+          // Single press: Clear current paragraph highlight & reset index to 0
+          if (activeElement) {
+            blockProgressMap.delete(activeElement);
+            targetChars.forEach((item) => {
+              item.spanNode.classList.remove('pagetyper-typed', 'pagetyper-current');
+            });
+            targetIndex = 0;
+            justAutoSkippedSpace = false;
+            skipNonTypingChars();
+            highlightCurrent();
+          }
+        }
+
+        updateHUD();
+        return;
+      }
+
+      if (targetIndex > 0) {
+        if (e.ctrlKey || e.altKey) {
+          // Rewind over any intervening non-alphanumeric chars (spaces/punctuation)
+          while (targetIndex > 0 && config.ignorePunctuation && !targetChars[targetIndex - 1].isAlphaNum) {
+            targetIndex--;
+            targetChars[targetIndex].spanNode.classList.remove('pagetyper-typed');
+          }
+          // Rewind the entire previous word
+          while (targetIndex > 0 && targetChars[targetIndex - 1].isAlphaNum) {
+            targetIndex--;
+            targetChars[targetIndex].spanNode.classList.remove('pagetyper-typed');
+          }
+        } else {
+          // Single character Backspace
+          targetIndex--;
+          // If we skipped punctuation, rewind back over it
+          while (targetIndex > 0 && config.ignorePunctuation && !targetChars[targetIndex].isAlphaNum) {
+            targetChars[targetIndex].spanNode.classList.remove('pagetyper-typed');
+            targetIndex--;
+          }
+          targetChars[targetIndex].spanNode.classList.remove('pagetyper-typed');
+        }
+
+        justAutoSkippedSpace = false;
+        highlightCurrent();
+        updateHUD();
+      }
+      return;
+    }
+
     // Ignore function keys, control, alt, meta, etc.
     if (e.ctrlKey || e.altKey || e.metaKey || e.key.length > 1) {
-      // Allow Backspace to undo last character
-      if (e.key === 'Backspace' && targetIndex > 0) {
-        e.preventDefault();
-        removeTypoTooltip();
-        targetIndex--;
-        // If we skipped punctuation, rewind back over it
-        while (targetIndex > 0 && config.ignorePunctuation && !targetChars[targetIndex].isAlphaNum) {
-          targetChars[targetIndex].spanNode.classList.remove('pagetyper-typed');
-          targetIndex--;
-        }
-        targetChars[targetIndex].spanNode.classList.remove('pagetyper-typed');
-        highlightCurrent();
-      }
       return;
     }
 
