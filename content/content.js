@@ -371,6 +371,58 @@
   // Register event listeners
   window.addEventListener('keydown', handleKeyDown, true);
 
+  // Intelligently reset typing block to selected text or paragraph
+  function handleSelectionChange() {
+    if (!isEnabled) return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    const startContainer = range.startContainer;
+    const selectedText = selection.toString().trim();
+    if (selectedText.length < 2) return;
+
+    const targetNode = startContainer.nodeType === Node.TEXT_NODE ? startContainer.parentElement : startContainer;
+    if (!targetNode || !(targetNode instanceof Element)) return;
+
+    // Check if target is inside the HUD or input elements
+    if (targetNode.closest('#pagetyper-hud, input, textarea, [contenteditable="true"]')) return;
+
+    // Refresh candidate blocks if needed
+    if (textBlocks.length === 0) scanTextBlocks();
+
+    // 1. Direct match with existing known text blocks
+    let matchedIndex = textBlocks.findIndex((block) => block === targetNode || block.contains(targetNode));
+
+    // 2. Fallback: Find closest semantic block container (p, li, h1-h6, blockquote, etc.)
+    if (matchedIndex === -1) {
+      const containerBlock = targetNode.closest('p, h1, h2, h3, h4, h5, h6, li, blockquote, article');
+      if (containerBlock) {
+        matchedIndex = textBlocks.indexOf(containerBlock);
+        if (matchedIndex === -1) {
+          // If not in textBlocks, dynamically add it
+          textBlocks.push(containerBlock);
+          matchedIndex = textBlocks.length - 1;
+        }
+      }
+    }
+
+    if (matchedIndex !== -1) {
+      // Clear visual browser highlight selection so typing highlights take over cleanly
+      selection.removeAllRanges();
+      selectBlock(matchedIndex);
+    }
+  }
+
+  // Trigger block switch when user finishes mouse or keyboard text selection
+  window.addEventListener('mouseup', handleSelectionChange, true);
+  window.addEventListener('keyup', (e) => {
+    if (e.shiftKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+      handleSelectionChange();
+    }
+  }, true);
+
   // Initialize
   window.addEventListener('DOMContentLoaded', () => {
     scanTextBlocks();

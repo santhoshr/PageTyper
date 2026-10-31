@@ -7,7 +7,8 @@
 ## ✨ Features
 
 - **Cross-Browser Manifest V3**: Compatible with Microsoft Edge, Google Chrome, Mozilla Firefox, and Apple Safari (via Safari Web Extension Converter or WebExtensions API).
-- **Interactive Block Selection (<kbd>Tab</kbd> / <kbd>Shift + Tab</kbd>)**:
+- **Interactive Block Selection (<kbd>Tab</kbd> / <kbd>Shift + Tab</kbd> / Mouse Selection)**:
+  - Select or highlight any text or paragraph on the page with your mouse or keyboard, and PageTyper will automatically reset the active typing block to that section.
   - Press <kbd>Tab</kbd> to cycle forward through paragraphs, headings, and article content.
   - Press <kbd>Shift + Tab</kbd> to navigate backwards.
 - **Smart Initial Mode (Text-Only / Relaxed)**:
